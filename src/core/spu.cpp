@@ -32,7 +32,7 @@
 LOG_CHANNEL(SPU);
 
 // Enable to dump all voices of the SPU audio individually.
-// #define SPU_DUMP_ALL_VOICES 1
+#define SPU_DUMP_ALL_VOICES 1
 
 // VU meter is only enabled in devel builds due to speed impact.
 #if defined(_DEBUG) || defined(_DEVEL)
