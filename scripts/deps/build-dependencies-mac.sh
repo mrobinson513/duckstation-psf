@@ -146,7 +146,7 @@ echo "Installing libpng..."
 rm -fr "libpng-$LIBPNG"
 tar xf "libpng-$LIBPNG.tar.xz"
 cd "libpng-$LIBPNG"
-cmake "${CMAKE_COMMON[@]}" "$CMAKE_ARCH_ARM64" -DBUILD_SHARED_LIBS=OFF -DPNG_TESTS=OFF -DPNG_ARM_NEON=on -DPNG_FRAMEWORK=OFF -B build-arm64
+cmake "${CMAKE_COMMON[@]}" "$CMAKE_ARCH_ARM64" -DBUILD_SHARED_LIBS=OFF -DPNG_TESTS=OFF -DPNG_ARM_NEON=on -DPNG_FRAMEWORK=OFF -B build
 make -C build "-j$NPROCS"
 make -C build install
 cd ..
@@ -362,7 +362,6 @@ tar xf "cpuinfo-$CPUINFO.tar.gz"
 cd "cpuinfo-$CPUINFO"
 cmake "${CMAKE_COMMON[@]}" "$CMAKE_ARCH_ARM64" -DCPUINFO_LIBRARY_TYPE=shared -DCPUINFO_RUNTIME_TYPE=shared -DCPUINFO_LOG_LEVEL=error -DCPUINFO_LOG_TO_STDIO=ON -DCPUINFO_BUILD_TOOLS=OFF -DCPUINFO_BUILD_UNIT_TESTS=OFF -DCPUINFO_BUILD_MOCK_TESTS=OFF -DCPUINFO_BUILD_BENCHMARKS=OFF -DUSE_SYSTEM_LIBS=ON -B build
 make -C build "-j$NPROCS"
-merge_binaries $(realpath build) $(realpath build-arm64)
 make -C build install
 cd ..
 
