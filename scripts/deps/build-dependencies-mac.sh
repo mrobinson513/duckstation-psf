@@ -82,7 +82,7 @@ CMAKE_ARCH_UNIVERSAL=-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
 
 # SBOM generation appears to be broken on MacOS, and I can't be arsed to debug it.
 CMAKE_COMMON_QT=(
-	-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+	-DCMAKE_OSX_ARCHITECTURES="arm64"
 	-DQT_GENERATE_SBOM=OFF
 )
 
