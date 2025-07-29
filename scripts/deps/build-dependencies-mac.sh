@@ -250,19 +250,6 @@ mkdir build
 cd build
 LDFLAGS="-dead_strip $LDFLAGS" CFLAGS="-Os $CFLAGS" CXXFLAGS="-Os $CXXFLAGS" \
 	../configure --prefix="$INSTALLDIR" \
-	--enable-cross-compile --arch=x86_64 --cc='clang -arch x86_64' --cxx='clang++ -arch x86_64' --disable-x86asm \
-	--disable-all --disable-autodetect --disable-static --enable-shared \
-	--enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-swscale \
-	--enable-audiotoolbox --enable-videotoolbox \
-	--enable-encoder=ffv1,qtrle,pcm_s16be,pcm_s16le,*_at,*_videotoolbox \
-	--enable-muxer=avi,matroska,mov,mp3,mp4,wav \
-	--enable-protocol=file
-make "-j$NPROCS"
-cd ..
-mkdir build-arm64
-cd build-arm64
-LDFLAGS="-dead_strip $LDFLAGS" CFLAGS="-Os $CFLAGS" CXXFLAGS="-Os $CXXFLAGS" \
-	../configure --prefix="$INSTALLDIR" \
 	--enable-cross-compile --arch=arm64 --cc='clang -arch arm64' --cxx='clang++ -arch arm64' --disable-x86asm \
 	--disable-all --disable-autodetect --disable-static --enable-shared \
 	--enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-swscale \
@@ -302,7 +289,7 @@ patch -u src/tools/macdeployqt/shared/shared.cpp <<EOF
 @@ -1122,14 +1122,8 @@
          addPlugins(QStringLiteral("networkinformation"));
      }
- 
+
 -    // All image formats (svg if QtSvg is used)
 -    const bool usesSvg = deploymentInfo.containsModule("Svg", libInfix);
 -    addPlugins(QStringLiteral("imageformats"), [usesSvg](const QString &lib) {
@@ -314,7 +301,7 @@ patch -u src/tools/macdeployqt/shared/shared.cpp <<EOF
 +    // All image formats
 +    addPlugins(QStringLiteral("imageformats"));
      addPlugins(QStringLiteral("iconengines"));
- 
+
      // Platforminputcontext plugins if QtGui is in use
 EOF
 
