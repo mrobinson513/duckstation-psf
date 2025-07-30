@@ -40,9 +40,11 @@ LOG_CHANNEL(SPU);
 #endif
 
 // Enable SPU state logging to CSV
-static bool s_spu_state_logging_enabled = false;
+static bool s_spu_state_logging_enabled = true; // Enable by default
 static u32 s_spu_state_log_counter = 0;
-static constexpr u32 SPU_STATE_LOG_INTERVAL = 44100; // Log every second at 44.1kHz
+static u32 s_spu_sample_counter = 0; // Track total samples processed
+static constexpr u32 SPU_STATE_LOG_INTERVAL = 735; // Log every frame (44100/60 = 735 samples per frame)
+static std::unique_ptr<std::FILE, decltype(&std::fclose)> s_spu_log_file{nullptr, &std::fclose};
 #define SPU_STATE_LOG_ENABLED 1
 
 ALWAYS_INLINE static constexpr s32 Clamp16(s32 value)
@@ -2545,6 +2547,9 @@ void SPU::Execute(void* param, TickCount ticks, TickCount ticks_late)
         }
       }
 
+      // Increment sample counter for logging
+      s_spu_sample_counter++;
+
 #ifdef SPU_STATE_LOG_ENABLED
       // Log SPU state at specified intervals
       if (s_spu_state_logging_enabled)
@@ -2595,25 +2600,32 @@ void SPU::UpdateEventInterval()
 #ifdef SPU_STATE_LOG_ENABLED
 void SPU::LogSPUStateToCSV()
 {
-  static bool header_written = false;
-
-  if (!header_written)
+  // Open log file if not already open
+  if (!s_spu_log_file)
   {
-    // Write CSV header
-    INFO_LOG("SPU_VOICE_CSV,Timestamp,Voice,On,ADSR_Phase,ADSR_Vol,Vol_Left,Vol_Right,Sample_Rate,Start_Addr,Repeat_Addr,Current_Addr,Sample_Index,Reverb_Enabled,Noise_Enabled,Pitch_Mod_Enabled");
-    header_written = true;
-  }
+    const std::string log_filename = System::GetNewMediaCapturePath(System::GetGameTitle(), "csv");
+    s_spu_log_file.reset(std::fopen(log_filename.c_str(), "w"));
+    if (!s_spu_log_file)
+    {
+      ERROR_LOG("Failed to open SPU state log file: {}", log_filename);
+      s_spu_state_logging_enabled = false;
+      return;
+    }
 
-  // Get current timestamp
-  const float timestamp = System::GetRunningTime();
+    INFO_LOG("SPU state logging to: {}", log_filename);
+
+    // Write CSV header
+    std::fprintf(s_spu_log_file.get(), "Timestamp,Voice,On,ADSR_Phase,ADSR_Vol,Vol_Left,Vol_Right,Sample_Rate,Start_Addr,Repeat_Addr,Current_Addr,Sample_Index,Reverb_Enabled,Noise_Enabled,Pitch_Mod_Enabled\n");
+    std::fflush(s_spu_log_file.get());
+  }
 
   // Log each voice as a separate CSV row
   for (u32 i = 0; i < NUM_VOICES; i++)
   {
     const Voice& v = s_state.voices[i];
 
-    const std::string csv_data = fmt::format("SPU_VOICE_CSV,{:.3f},{},{},{},{},{},{},{:.2f},0x{:04X},0x{:04X},0x{:04X},{},{},{},{}",
-      timestamp,
+    std::fprintf(s_spu_log_file.get(), "%u,%u,%d,%u,%d,%d,%d,%.2f,0x%04X,0x%04X,0x%04X,%u,%d,%d,%d\n",
+      s_spu_sample_counter,
       i,
       v.IsOn() ? 1 : 0,
       static_cast<u8>(v.adsr_phase),
@@ -2629,9 +2641,10 @@ void SPU::LogSPUStateToCSV()
       IsVoiceNoiseEnabled(i) ? 1 : 0,
       IsPitchModulationEnabled(i) ? 1 : 0
     );
-
-    INFO_LOG("{}", csv_data);
   }
+
+  // Flush to ensure data is written
+  std::fflush(s_spu_log_file.get());
 }
 #endif
 
