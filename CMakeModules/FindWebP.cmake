@@ -92,6 +92,19 @@ else ()
     set(WebP_LIBS_NOT_FOUND "WebP (required)")
 endif ()
 
+# Find SharpYUV library (required for WebP 1.4.0+)
+find_library(WebP_SHARPYUV_LIBRARY
+    NAMES sharpyuv libsharpyuv
+    HINTS ${PC_WEBP_LIBDIR} ${PC_WEBP_LIBRARY_DIRS}
+)
+
+if (WebP_SHARPYUV_LIBRARY)
+    list(APPEND WebP_LIBS_FOUND "sharpyuv (required): ${WebP_SHARPYUV_LIBRARY}")
+else ()
+    set(_WebP_REQUIRED_LIBS_FOUND OFF)
+    list(APPEND WebP_LIBS_NOT_FOUND "sharpyuv (required)")
+endif ()
+
 if ("demux" IN_LIST WebP_FIND_COMPONENTS)
     find_library(WebP_DEMUX_LIBRARY
         NAMES ${WebP_DEMUX_NAMES} webpdemux libwebpdemux
@@ -143,6 +156,10 @@ if (WebP_LIBRARY AND NOT TARGET WebP::libwebp)
         INTERFACE_COMPILE_OPTIONS "${WebP_COMPILE_OPTIONS}"
         INTERFACE_INCLUDE_DIRECTORIES "${WebP_INCLUDE_DIR}"
     )
+    # Link SharpYUV library if found
+    if (WebP_SHARPYUV_LIBRARY)
+        set_property(TARGET WebP::libwebp APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${WebP_SHARPYUV_LIBRARY}")
+    endif ()
 endif ()
 
 if (WebP_DEMUX_LIBRARY AND NOT TARGET WebP::demux)
@@ -158,9 +175,10 @@ mark_as_advanced(
     WebP_INCLUDE_DIR
     WebP_LIBRARY
     WebP_DEMUX_LIBRARY
+    WebP_SHARPYUV_LIBRARY
 )
 
 if (WebP_FOUND)
-    set(WebP_LIBRARIES ${WebP_LIBRARY} ${WebP_DEMUX_LIBRARY})
+    set(WebP_LIBRARIES ${WebP_LIBRARY} ${WebP_SHARPYUV_LIBRARY} ${WebP_DEMUX_LIBRARY})
     set(WebP_INCLUDE_DIRS ${WebP_INCLUDE_DIR})
 endif ()

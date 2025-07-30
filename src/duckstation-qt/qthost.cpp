@@ -3339,9 +3339,6 @@ int main(int argc, char* argv[])
   // Set theme before creating any windows.
   QtHost::UpdateApplicationTheme();
 
-  // Build warning.
-  AutoUpdaterWindow::warnAboutUnofficialBuild();
-
   // Start logging early.
   LogWindow::updateSettings();
 

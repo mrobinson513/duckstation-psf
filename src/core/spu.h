@@ -50,4 +50,8 @@ void SetAudioOutputMuted(bool muted);
 AudioStream* GetOutputStream();
 void RecreateOutputStream();
 
+/// SPU state logging functions
+void SetSPUStateLoggingEnabled(bool enabled);
+bool IsSPUStateLoggingEnabled();
+
 }; // namespace SPU

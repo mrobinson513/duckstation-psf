@@ -39,6 +39,12 @@ LOG_CHANNEL(SPU);
 #define SPU_ENABLE_VU_METER 1
 #endif
 
+// Enable SPU state logging to CSV
+static bool s_spu_state_logging_enabled = false;
+static u32 s_spu_state_log_counter = 0;
+static constexpr u32 SPU_STATE_LOG_INTERVAL = 44100; // Log every second at 44.1kHz
+#define SPU_STATE_LOG_ENABLED 1
+
 ALWAYS_INLINE static constexpr s32 Clamp16(s32 value)
 {
   return (value < -0x8000) ? -0x8000 : (value > 0x7FFF) ? 0x7FFF : value;
@@ -366,6 +372,10 @@ static void UpdateTransferEvent();
 static void UpdateDMARequest();
 
 static void CreateOutputStream();
+
+#ifdef SPU_STATE_LOG_ENABLED
+static void LogSPUStateToCSV();
+#endif
 
 namespace {
 struct SPUState
@@ -2534,6 +2544,19 @@ void SPU::Execute(void* param, TickCount ticks, TickCount ticks_late)
           key_on_register >>= 1;
         }
       }
+
+#ifdef SPU_STATE_LOG_ENABLED
+      // Log SPU state at specified intervals
+      if (s_spu_state_logging_enabled)
+      {
+        s_spu_state_log_counter++;
+        if (s_spu_state_log_counter >= SPU_STATE_LOG_INTERVAL)
+        {
+          LogSPUStateToCSV();
+          s_spu_state_log_counter = 0;
+        }
+      }
+#endif
     }
 
 #ifndef __ANDROID__
@@ -2567,6 +2590,78 @@ void SPU::UpdateEventInterval()
   const TickCount new_downcount = interval_ticks - s_state.ticks_carry;
   s_state.tick_event.SetInterval(interval_ticks);
   s_state.tick_event.Schedule(new_downcount);
+}
+
+#ifdef SPU_STATE_LOG_ENABLED
+void SPU::LogSPUStateToCSV()
+{
+  static bool header_written = false;
+
+  if (!header_written)
+  {
+    // Write CSV header
+    INFO_LOG("SPU_VOICE_CSV,Timestamp,Voice,On,ADSR_Phase,ADSR_Vol,Vol_Left,Vol_Right,Sample_Rate,Start_Addr,Repeat_Addr,Current_Addr,Sample_Index,Reverb_Enabled,Noise_Enabled,Pitch_Mod_Enabled");
+    header_written = true;
+  }
+
+  // Get current timestamp
+  const float timestamp = System::GetRunningTime();
+
+  // Log each voice as a separate CSV row
+  for (u32 i = 0; i < NUM_VOICES; i++)
+  {
+    const Voice& v = s_state.voices[i];
+
+    const std::string csv_data = fmt::format("SPU_VOICE_CSV,{:.3f},{},{},{},{},{},{},{:.2f},0x{:04X},0x{:04X},0x{:04X},{},{},{},{}",
+      timestamp,
+      i,
+      v.IsOn() ? 1 : 0,
+      static_cast<u8>(v.adsr_phase),
+      ApplyVolume(100, v.regs.adsr_volume),
+      ApplyVolume(100, v.left_volume.current_level),
+      ApplyVolume(100, v.right_volume.current_level),
+      (float(v.regs.adpcm_sample_rate) / 4096.0f) * 44100.0f,
+      ZeroExtend32(v.regs.adpcm_start_address),
+      ZeroExtend32(v.regs.adpcm_repeat_address),
+      ZeroExtend32(v.current_address),
+      IsVoiceNoiseEnabled(i) ? 999 : ZeroExtend32(v.counter.sample_index.GetValue()),
+      IsVoiceReverbEnabled(i) ? 1 : 0,
+      IsVoiceNoiseEnabled(i) ? 1 : 0,
+      IsPitchModulationEnabled(i) ? 1 : 0
+    );
+
+    INFO_LOG("{}", csv_data);
+  }
+}
+#endif
+
+void SPU::SetSPUStateLoggingEnabled(bool enabled)
+{
+#ifdef SPU_STATE_LOG_ENABLED
+  s_spu_state_logging_enabled = enabled;
+  if (enabled)
+  {
+    s_spu_state_log_counter = 0;
+    INFO_LOG("SPU state logging enabled - will log every {} samples ({:.2f}s)", SPU_STATE_LOG_INTERVAL,
+             static_cast<float>(SPU_STATE_LOG_INTERVAL) / SAMPLE_RATE);
+  }
+  else
+  {
+    INFO_LOG("SPU state logging disabled");
+  }
+#else
+  if (enabled)
+    WARNING_LOG("SPU state logging requested but not compiled in");
+#endif
+}
+
+bool SPU::IsSPUStateLoggingEnabled()
+{
+#ifdef SPU_STATE_LOG_ENABLED
+  return s_spu_state_logging_enabled;
+#else
+  return false;
+#endif
 }
 
 void SPU::DrawDebugStateWindow(float scale)
