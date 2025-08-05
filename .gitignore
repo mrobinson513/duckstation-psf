@@ -25,7 +25,6 @@ ipch/*
 # cmake stuff
 CMakeCache.txt
 CMakeFiles
-Makefile
 cmake_install.cmake
 install_manifest.txt
 /.cache/

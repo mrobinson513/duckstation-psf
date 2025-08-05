@@ -43,7 +43,7 @@ LOG_CHANNEL(SPU);
 static bool s_spu_state_logging_enabled = true; // Enable by default
 static u32 s_spu_state_log_counter = 0;
 static u32 s_spu_sample_counter = 0; // Track total samples processed
-static constexpr u32 SPU_STATE_LOG_INTERVAL = 735; // Log every frame (44100/60 = 735 samples per frame)
+static constexpr u32 SPU_STATE_LOG_INTERVAL = 1; // Log every frame (44100/60 = 735 samples per frame)
 static std::unique_ptr<std::FILE, decltype(&std::fclose)> s_spu_log_file{nullptr, &std::fclose};
 #define SPU_STATE_LOG_ENABLED 1
 
@@ -2600,6 +2600,9 @@ void SPU::UpdateEventInterval()
 #ifdef SPU_STATE_LOG_ENABLED
 void SPU::LogSPUStateToCSV()
 {
+  // Static array to track previous start addresses per voice
+  static std::array<u16, NUM_VOICES> previous_start_addresses = {};
+
   // Open log file if not already open
   if (!s_spu_log_file)
   {
@@ -2619,28 +2622,33 @@ void SPU::LogSPUStateToCSV()
     std::fflush(s_spu_log_file.get());
   }
 
-  // Log each voice as a separate CSV row
+  // Log each voice as a separate CSV row only if start address changed
   for (u32 i = 0; i < NUM_VOICES; i++)
   {
     const Voice& v = s_state.voices[i];
+    u16 current_start_addr = v.regs.adpcm_start_address;
 
-    std::fprintf(s_spu_log_file.get(), "%u,%u,%d,%u,%d,%d,%d,%.2f,0x%04X,0x%04X,0x%04X,%u,%d,%d,%d\n",
-      s_spu_sample_counter,
-      i,
-      v.IsOn() ? 1 : 0,
-      static_cast<u8>(v.adsr_phase),
-      ApplyVolume(100, v.regs.adsr_volume),
-      ApplyVolume(100, v.left_volume.current_level),
-      ApplyVolume(100, v.right_volume.current_level),
-      (float(v.regs.adpcm_sample_rate) / 4096.0f) * 44100.0f,
-      ZeroExtend32(v.regs.adpcm_start_address),
-      ZeroExtend32(v.regs.adpcm_repeat_address),
-      ZeroExtend32(v.current_address),
-      IsVoiceNoiseEnabled(i) ? 999 : ZeroExtend32(v.counter.sample_index.GetValue()),
-      IsVoiceReverbEnabled(i) ? 1 : 0,
-      IsVoiceNoiseEnabled(i) ? 1 : 0,
-      IsPitchModulationEnabled(i) ? 1 : 0
-    );
+    if (current_start_addr != previous_start_addresses[i])
+    {
+      std::fprintf(s_spu_log_file.get(), "%u,%u,%d,%u,%d,%d,%d,%.2f,0x%04X,0x%04X,0x%04X,%u,%d,%d,%d\n",
+        s_spu_sample_counter,
+        i,
+        v.IsOn() ? 1 : 0,
+        static_cast<u8>(v.adsr_phase),
+        ApplyVolume(100, v.regs.adsr_volume),
+        ApplyVolume(100, v.left_volume.current_level),
+        ApplyVolume(100, v.right_volume.current_level),
+        (float(v.regs.adpcm_sample_rate) / 4096.0f) * 44100.0f,
+        ZeroExtend32(current_start_addr),
+        ZeroExtend32(v.regs.adpcm_repeat_address),
+        ZeroExtend32(v.current_address),
+        IsVoiceNoiseEnabled(i) ? 999 : ZeroExtend32(v.counter.sample_index.GetValue()),
+        IsVoiceReverbEnabled(i) ? 1 : 0,
+        IsVoiceNoiseEnabled(i) ? 1 : 0,
+        IsPitchModulationEnabled(i) ? 1 : 0
+      );
+      previous_start_addresses[i] = current_start_addr;
+    }
   }
 
   // Flush to ensure data is written
