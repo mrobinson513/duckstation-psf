@@ -49,3 +49,6 @@ __pycache__
 
 # built and packaged
 !*.zip
+
+*.app
+*.app/
