@@ -2600,8 +2600,9 @@ void SPU::UpdateEventInterval()
 #ifdef SPU_STATE_LOG_ENABLED
 void SPU::LogSPUStateToCSV()
 {
-  // Static array to track previous start addresses per voice
+  // Static arrays to track previous start addresses and "On" states per voice
   static std::array<u16, NUM_VOICES> previous_start_addresses = {};
+  static std::array<bool, NUM_VOICES> previous_on_states = {};
 
   // Open log file if not already open
   if (!s_spu_log_file)
@@ -2622,18 +2623,19 @@ void SPU::LogSPUStateToCSV()
     std::fflush(s_spu_log_file.get());
   }
 
-  // Log each voice as a separate CSV row only if start address changed
+  // Log each voice as a separate CSV row if start address or "On" state changed
   for (u32 i = 0; i < NUM_VOICES; i++)
   {
     const Voice& v = s_state.voices[i];
     u16 current_start_addr = v.regs.adpcm_start_address;
+    bool current_on_state = v.IsOn();
 
-    if (current_start_addr != previous_start_addresses[i])
+    if (current_start_addr != previous_start_addresses[i] || current_on_state != previous_on_states[i])
     {
       std::fprintf(s_spu_log_file.get(), "%u,%u,%d,%u,%d,%d,%d,%.2f,0x%04X,0x%04X,0x%04X,%u,%d,%d,%d\n",
         s_spu_sample_counter,
         i,
-        v.IsOn() ? 1 : 0,
+        current_on_state ? 1 : 0,
         static_cast<u8>(v.adsr_phase),
         ApplyVolume(100, v.regs.adsr_volume),
         ApplyVolume(100, v.left_volume.current_level),
@@ -2648,6 +2650,7 @@ void SPU::LogSPUStateToCSV()
         IsPitchModulationEnabled(i) ? 1 : 0
       );
       previous_start_addresses[i] = current_start_addr;
+      previous_on_states[i] = current_on_state;
     }
   }
 
